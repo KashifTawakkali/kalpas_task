@@ -11,6 +11,8 @@ class NewsScreen extends StatefulWidget {
 class _NewsScreenState extends State<NewsScreen> {
   late Future<Map<String, dynamic>> _newsData;
   final NewsApiController _newsApiController = NewsApiController();
+  List<Map<String, dynamic>> _favorites = []; 
+  bool _isSnackBarVisible = false; 
 
   @override
   void initState() {
@@ -18,13 +20,38 @@ class _NewsScreenState extends State<NewsScreen> {
     _newsData = _newsApiController.fetchNews();
   }
 
+  void _toggleFavorite(Map<String, dynamic> article) {
+    setState(() {
+      if (_favorites.contains(article)) {
+        _favorites.remove(article); 
+        _showSnackBar('Removed from Favorites!', Colors.red);
+      } else {
+        _favorites.add(article);
+        _showSnackBar('Added to Favorites!', Colors.green);
+      }
+    });
+  }
+
+  void _showSnackBar(String message, Color color) {
+    if (_isSnackBarVisible) return; 
+
+    _isSnackBarVisible = true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 2),
+        backgroundColor: color,
+      ),
+    ).closed.then((_) {
+      _isSnackBarVisible = false; 
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        
         elevation: 0,
         backgroundColor: Colors.white,
         title: Padding(
@@ -39,7 +66,10 @@ class _NewsScreenState extends State<NewsScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => FavoritesScreen()),
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          FavoritesScreen(favoriteNews: _favorites),
+                    ),
                   );
                 },
                 child: Row(
@@ -81,104 +111,139 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildNewsCard(BuildContext context, Map<String, dynamic> article) {
+    bool isFavorite = _favorites.contains(article); 
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => NewsDetails()),
+          MaterialPageRoute(
+            builder: (context) => NewsDetails(
+              title: article['title'] ?? 'No title available',
+              date: article['publishedAt'] ?? 'No date available',
+              content: article['content'] ?? 'No content available',
+              description: article['description'] ?? 'No description available',
+              imageUrl:
+                  article['urlToImage'] ?? 'https://via.placeholder.com/600',
+            ),
+          ),
         );
       },
-      child: Card(
-        margin: EdgeInsets.only(bottom: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: article['urlToImage'] != null &&
-                        article['urlToImage']!.isNotEmpty
-                    ? Image.network(
-                        article['urlToImage']!,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Fallback image in case of error loading the network image
-                          return Image.asset(
-                            'assets/images/news.jpg',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      )
-                    : Image.asset(
-                        'assets/images/news.jpg',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (isFavorite) {
+            setState(() {});
+          }
+        },
+        onExit: (_) {
+          if (isFavorite) {
+            setState(() {});
+          }
+        },
+        child: Card(
+          margin: EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 10, // shadow effect
+          child: Container(
+            color: isFavorite
+                ? Color.fromARGB(255, 255, 255, 255) 
+                : Colors.white,
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: article['urlToImage'] != null &&
+                          article['urlToImage']!.isNotEmpty
+                      ? FadeInImage.assetNetwork(
+                          placeholder:
+                              'assets/images/news.jpg', 
+                          image: article['urlToImage']!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          imageErrorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              'assets/images/news.jpg', 
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          'assets/images/news.jpg',
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article['title'] ?? 'No title',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      article['title'] ?? 'No title',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      article['description'] ?? 'No description',
-                      style: TextStyle(color: Colors.grey[600]),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today,
-                            size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            article['publishedAt'] ?? 'No date',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                            overflow: TextOverflow.ellipsis,
+                      SizedBox(height: 4),
+                      Text(
+                        article['description'] ?? 'No description Available',
+                        style: TextStyle(color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today,
+                              size: 14, color: Colors.grey),
+                          SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              article['publishedAt'] ?? 'No date',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    _toggleFavorite(article); 
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 25),
+                    decoration: BoxDecoration(
+                      color: isFavorite ? Colors.pink[100] : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: Colors.red,
+                        ),
+                        Text(
+                          'Favorite',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              SizedBox(width: 8),
-              Column(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.favorite_border, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        // Update UI to reflect changes
-                      });
-                    },
-                  ),
-                  Text(
-                    'Add to\nFavorite',
-                    style: TextStyle(color: Colors.red, fontSize: 12),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
